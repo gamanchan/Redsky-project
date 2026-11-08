@@ -1,0 +1,245 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111426">
+<title>RedSky | Amaneceres Girona</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101323;color:#f6f4fa;font-family:system-ui,Arial}
+main{max-width:760px;margin:auto;padding:20px}
+header{display:flex;justify-content:space-between;align-items:center}
+h1{font-size:29px;margin:12px 0 0}
+h2{font-size:19px;margin:0 0 14px}
+p,small{color:#b9bdcd}
+.card{background:#1c2133;border:1px solid #34394f;border-radius:22px;padding:22px;margin:18px 0}
+.hero{background:linear-gradient(135deg,#592d50,#1c2139)}
+button,select{padding:14px;border-radius:12px;font-size:15px}
+button{background:#ff9488;color:#211923;border:0;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.6}
+select{background:#282e43;color:white;border:1px solid #555b70;width:100%;margin-bottom:12px}
+.score{font-size:60px;font-weight:800;color:#ff9789}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid .card{margin:0;padding:16px}
+.value{font-size:23px;font-weight:bold}
+.bar{height:12px;background:#353a4c;border-radius:10px;overflow:hidden}
+.fill{height:100%;background:linear-gradient(90deg,#e4aa70,#ff687b);width:0}
+.place{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #373c50}
+.place:last-child{border:0}
+.muted{font-size:13px;color:#aeb4c8}
+.error{color:#ff9999}
+.good{color:#8de0b3}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div>
+<h1>🌅 RedSky</h1>
+<small>Amaneceres rojizos · Girona</small>
+</div>
+<small>Beta V0.2</small>
+</header>
+
+<section class="card hero">
+<h2>¿Mañana tendremos un amanecer espectacular?</h2>
+<p>Predicción meteorológica experimental y comparación de localidades.</p>
+<select id="location"></select>
+<button id="refresh">Actualizar pronóstico</button>
+<p id="status">Preparando RedSky...</p>
+</section>
+
+<div class="grid">
+<section class="card">
+<small>Potencial rojizo</small>
+<div class="score" id="score">--</div>
+<small id="level">Esperando datos</small>
+</section>
+<section class="card">
+<small>Salida del Sol</small>
+<div class="value" id="sunrise">--:--</div>
+<small>Hora local</small>
+</section>
+</div>
+
+<section class="card">
+<h2>☁️ Condiciones previstas</h2>
+<div id="conditions">Esperando datos...</div>
+</section>
+
+<section class="card">
+<h2>🏆 Mejores localidades</h2>
+<p>Comparación experimental para mañana.</p>
+<div id="ranking">Cargando...</div>
+</section>
+
+<section class="card">
+<h2>🔬 Sobre la predicción</h2>
+<p>RedSky analiza nubes por altura, visibilidad y condiciones del horizonte oriental.</p>
+<p>La puntuación es un índice experimental, no una probabilidad estadística de acierto.</p>
+</section>
+</main>
+<script>
+"use strict";
+
+const places=[
+["Girona",41.9794,2.8214],
+["Banyoles",42.1167,2.7667],
+["Celrà",42.025,2.879],
+["Bescanó",41.966,2.740],
+["Salt",41.975,2.792],
+["Sarrià de Ter",42.017,2.825],
+["Sant Julià de Ramis",42.030,2.853],
+["Cassà de la Selva",41.887,2.875],
+["Caldes de Malavella",41.838,2.809],
+["L'Escala",42.125,3.132],
+["Torroella de Montgrí",42.042,3.127],
+["Palamós",41.847,3.128]
+];
+
+const $=id=>document.getElementById(id);
+const select=$("location");
+places.forEach((p,i)=>{
+const o=document.createElement("option");
+o.value=i;o.textContent=p[0];select.appendChild(o);
+});
+
+function clamp(n){return Math.max(0,Math.min(1,n))}
+function scoreWeather(w){
+const high=w.cloud_cover_high??0;
+const mid=w.cloud_cover_mid??0;
+const low=w.cloud_cover_low??0;
+const visibility=w.visibility??10000;
+const humidity=w.relative_humidity_2m??70;
+const precipitation=w.precipitation_probability??0;
+const clouds=clamp(1-Math.abs((high*.55+mid*.45)-55)/65);
+const clear=clamp(1-low/100);
+const vis=clamp(visibility/15000);
+const dry=clamp(1-precipitation/100);
+const humidityFactor=clamp(1-Math.max(0,humidity-85)/30);
+return Math.round(100*(
+.30*clouds+
+.30*clear+
+.15*vis+
+.15*dry+
+.10*humidityFactor
+));
+}
+
+function tomorrow(){
+const parts=new Intl.DateTimeFormat("en-CA",{
+timeZone:"Europe/Madrid",
+year:"numeric",month:"2-digit",day:"2-digit"
+}).format(new Date());
+const d=new Date(parts+"T12:00:00Z");
+d.setUTCDate(d.getUTCDate()+1);
+return d.toISOString().slice(0,10);
+}
+
+async function getForecast(p){
+const url=new URL("https://api.open-meteo.com/v1/forecast");
+url.searchParams.set("latitude",p[1]);
+url.searchParams.set("longitude",p[2]);
+url.searchParams.set("hourly",[
+"cloud_cover_low","cloud_cover_mid",
+"cloud_cover_high","visibility",
+"relative_humidity_2m",
+"precipitation_probability"
+].join(","));
+url.searchParams.set("daily","sunrise");
+url.searchParams.set("timezone","Europe/Madrid");
+url.searchParams.set("forecast_days","3");
+
+const controller=new AbortController();
+const timeout=setTimeout(()=>controller.abort(),12000);
+let response;
+try{
+response=await fetch(url,{signal:controller.signal});
+}finally{clearTimeout(timeout)}
+if(!response.ok)throw Error("HTTP "+response.status);
+const data=await response.json();
+if(data.error)throw Error(data.reason||"Error API");
+
+const date=tomorrow();
+const dayIndex=data.daily.time.indexOf(date);
+if(dayIndex<0)throw Error("Fecha no disponible");
+const sunrise=data.daily.sunrise[dayIndex];
+const sunriseTime=new Date(sunrise).getTime();
+let best=null;
+
+for(let i=0;i<data.hourly.time.length;i++){
+const t=new Date(data.hourly.time[i]).getTime();
+if(Math.abs(t-sunriseTime)>60*60*1000)continue;
+const w={};
+for(const key of [
+"cloud_cover_low","cloud_cover_mid",
+"cloud_cover_high","visibility",
+"relative_humidity_2m",
+"precipitation_probability"
+])w[key]=data.hourly[key][i];
+const score=scoreWeather(w);
+if(!best||score>best.score)best={score,w};
+}
+if(!best)throw Error("Sin datos horarios");
+return {name:p[0],sunrise,score:best.score,w:best.w};
+}
+
+let results=[];
+function render(){
+const selected=places[Number(select.value)][0];
+const item=results.find(x=>x.name===selected);
+if(!item)return;
+$("score").textContent=item.score;
+$("level").textContent=item.score>=75?"Potencial alto":item.score>=50?"Potencial moderado":"Potencial bajo";
+$("sunrise").textContent=item.sunrise.slice(11,16);
+const w=item.w;
+$("conditions").innerHTML=`
+<p>Nubes altas: ${w.cloud_cover_high??"--"}%</p>
+<p>Nubes medias: ${w.cloud_cover_mid??"--"}%</p>
+<p>Nubes bajas: ${w.cloud_cover_low??"--"}%</p>
+<p>Visibilidad: ${w.visibility==null?"--":(w.visibility/1000).toFixed(1)+" km"}</p>
+<p>Humedad: ${w.relative_humidity_2m??"--"}%</p>`;
+}
+
+async function load(){
+$("refresh").disabled=true;
+$("status").textContent="Consultando Open-Meteo...";
+$("ranking").textContent="Calculando...";
+try{
+const settled=await Promise.allSettled(
+places.map(p=>getForecast(p))
+);
+results=settled.filter(x=>x.status==="fulfilled")
+.map(x=>x.value).sort((a,b)=>b.score-a.score);
+if(!results.length){
+const error=settled.find(x=>x.status==="rejected");
+throw error?.reason||Error("Sin resultados");
+}
+$("ranking").replaceChildren();
+results.forEach((p,i)=>{
+const row=document.createElement("div");
+row.className="place";
+const name=document.createElement("span");
+name.textContent=(i+1)+". "+p.name;
+const value=document.createElement("strong");
+value.textContent=p.score+"/100";
+row.append(name,value);
+$("ranking").appendChild(row);
+});
+$("status").textContent=
+"Predicción actualizada · "+results.length+" localidades";
+render();
+}catch(e){
+$("status").textContent="Error: "+e.message;
+$("status").className="error";
+$("ranking").textContent="No se pudo cargar.";
+}finally{$("refresh").disabled=false}
+}
+select.addEventListener("change",render);
+$("refresh").addEventListener("click",load);
+load();
+</script>
+</body>
+</html>
