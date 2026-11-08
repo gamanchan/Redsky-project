@@ -1,245 +1,508 @@
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#111426">
-<title>RedSky | Amaneceres Girona</title>
+<title>RedSky · Amaneceres y atardeceres</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101323;color:#f6f4fa;font-family:system-ui,Arial}
-main{max-width:760px;margin:auto;padding:20px}
-header{display:flex;justify-content:space-between;align-items:center}
-h1{font-size:29px;margin:12px 0 0}
-h2{font-size:19px;margin:0 0 14px}
-p,small{color:#b9bdcd}
-.card{background:#1c2133;border:1px solid #34394f;border-radius:22px;padding:22px;margin:18px 0}
-.hero{background:linear-gradient(135deg,#592d50,#1c2139)}
-button,select{padding:14px;border-radius:12px;font-size:15px}
-button{background:#ff9488;color:#211923;border:0;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.6}
-select{background:#282e43;color:white;border:1px solid #555b70;width:100%;margin-bottom:12px}
-.score{font-size:60px;font-weight:800;color:#ff9789}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.grid .card{margin:0;padding:16px}
-.value{font-size:23px;font-weight:bold}
-.bar{height:12px;background:#353a4c;border-radius:10px;overflow:hidden}
-.fill{height:100%;background:linear-gradient(90deg,#e4aa70,#ff687b);width:0}
-.place{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #373c50}
-.place:last-child{border:0}
-.muted{font-size:13px;color:#aeb4c8}
-.error{color:#ff9999}
-.good{color:#8de0b3}
+body{margin:0;background:#101323;color:#f6f4fa;font:15px system-ui,sans-serif}
+main{max-width:960px;margin:auto;padding:16px}
+h1{margin:8px 0 0;font-size:29px}
+h2{font-size:19px;margin:0 0 10px}
+.muted,small{color:#b9bdcd}
+.card{background:#1d2235;border:1px solid #373c53;border-radius:20px;padding:17px;margin:15px 0}
+.hero{background:linear-gradient(120deg,#512b4c,#1d233b)}
+button,input{font:inherit;border-radius:11px;padding:12px}
+button{border:0;background:#ff998c;color:#241b27;font-weight:700;cursor:pointer}
+button:disabled{opacity:.55}
+input{background:#282e43;color:white;border:1px solid #596076;min-width:0}
+input[type=date]{color-scheme:dark}
+.line{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.line>*{flex:1}
+.line button{flex:0 0 auto}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tabs button{background:#2c3148;color:#fff}
+.tabs button.active{background:#ff998c;color:#211723}
+.score{font-size:48px;font-weight:800;color:#ff998c}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat>div{padding:15px;background:#272d42;border-radius:14px}
+#map{height:430px;border-radius:16px;z-index:0;background:#30394d}
+.legend{display:flex;gap:5px;margin:10px 0;flex-wrap:wrap}
+.legend span{flex:1;text-align:center;font-size:11px;padding:8px 2px;border-radius:7px;color:#111;font-weight:700;min-width:65px}
+.status{min-height:25px}
+.err{color:#ffaaaa}
+.leaflet-container{font:14px system-ui}
+.leaflet-popup-content{color:#24252b}
+#results>div{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #3b4057;cursor:pointer}
+.fine{font-size:12px;line-height:1.5}
+@media(max-width:520px){
+#map{height:390px}
+.line.search input{flex-basis:100%}
+.line.search button{flex:1}
+}
 </style>
 </head>
 <body>
 <main>
 <header>
-<div>
-<h1>🌅 RedSky</h1>
-<small>Amaneceres rojizos · Girona</small>
-</div>
-<small>Beta V0.2</small>
+<h1>🌅 RedSky <small>V0.3</small></h1>
+<small>Amaneceres y atardeceres · Mapa interactivo</small>
 </header>
 
 <section class="card hero">
-<h2>¿Mañana tendremos un amanecer espectacular?</h2>
-<p>Predicción meteorológica experimental y comparación de localidades.</p>
-<select id="location"></select>
-<button id="refresh">Actualizar pronóstico</button>
-<p id="status">Preparando RedSky...</p>
-</section>
-
-<div class="grid">
-<section class="card">
-<small>Potencial rojizo</small>
-<div class="score" id="score">--</div>
-<small id="level">Esperando datos</small>
-</section>
-<section class="card">
-<small>Salida del Sol</small>
-<div class="value" id="sunrise">--:--</div>
-<small>Hora local</small>
-</section>
+<h2>¿Dónde se encenderá el cielo?</h2>
+<div class="line search">
+<input id="search" placeholder="Buscar localidad (ej. Roses)" aria-label="Buscar localidad">
+<button id="find">Buscar</button>
+<button id="gps">📍 Mi ubicación</button>
 </div>
-
-<section class="card">
-<h2>☁️ Condiciones previstas</h2>
-<div id="conditions">Esperando datos...</div>
+<div class="tabs">
+<button id="sunrise" class="active">🌅 Amanecer</button>
+<button id="sunset">🌇 Atardecer</button>
+</div>
+<div class="line">
+<label for="date">Fecha:</label>
+<input id="date" type="date">
+<button id="update">Actualizar mapa</button>
+</div>
+<strong id="eventTitle"></strong>
+<p id="status" class="status muted" role="status">Preparando el mapa…</p>
 </section>
 
 <section class="card">
-<h2>🏆 Mejores localidades</h2>
-<p>Comparación experimental para mañana.</p>
-<div id="ranking">Cargando...</div>
+<h2>🗺️ Mapa de potencial rojizo</h2>
+<div id="map"></div>
+<div class="legend">
+<span style="background:#7996b7">0–24 Bajo</span>
+<span style="background:#d3bd79">25–49 Medio</span>
+<span style="background:#ef9c67">50–74 Alto</span>
+<span style="background:#ce5d76;color:white">75–100 Muy alto</span>
+</div>
+<p class="fine muted">
+Círculos de muestra meteorológica, no un mapa continuo ni un pronóstico calle por calle.
+Pulsa un círculo para seleccionar un punto. Mueve el mapa y pulsa «Actualizar mapa»
+para recalcular la zona visible.
+</p>
 </section>
 
 <section class="card">
-<h2>🔬 Sobre la predicción</h2>
-<p>RedSky analiza nubes por altura, visibilidad y condiciones del horizonte oriental.</p>
-<p>La puntuación es un índice experimental, no una probabilidad estadística de acierto.</p>
+<h2>📍 Punto seleccionado</h2>
+<p id="place">Roses, Girona (ubicación inicial)</p>
+<div class="stat">
+<div>
+<small>Índice experimental</small>
+<div id="score" class="score">—</div>
+<small id="level">Sin datos</small>
+</div>
+<div>
+<small>Hora del evento</small>
+<h2 id="eventTime">—</h2>
+<small>Europe/Madrid</small>
+</div>
+</div>
+<p id="details" class="muted">Selecciona un punto o actualiza el pronóstico.</p>
+</section>
+
+<section class="card">
+<h2>🏆 Mejores puntos del mapa</h2>
+<div id="results">Sin datos todavía.</div>
+</section>
+
+<section class="card">
+<h2>🔬 Cómo interpretar RedSky</h2>
+<p class="fine muted">
+El índice 0–100 es una fórmula heurística experimental, NO una probabilidad
+de que el cielo se vuelva rojo. Las capas nubosas y la visibilidad se consultan
+en Open-Meteo. La distribución de nubes hacia el horizonte solar, el relieve
+y la opacidad real todavía no están modelados.
+</p>
+<p class="fine muted">
+Fuentes: Open-Meteo Forecast API y Geocoding API;
+mapa OpenStreetMap/Leaflet. La geolocalización requiere permiso y HTTPS.
+</p>
 </section>
 </main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-"use strict";
+'use strict';
 
-const places=[
-["Girona",41.9794,2.8214],
-["Banyoles",42.1167,2.7667],
-["Celrà",42.025,2.879],
-["Bescanó",41.966,2.740],
-["Salt",41.975,2.792],
-["Sarrià de Ter",42.017,2.825],
-["Sant Julià de Ramis",42.030,2.853],
-["Cassà de la Selva",41.887,2.875],
-["Caldes de Malavella",41.838,2.809],
-["L'Escala",42.125,3.132],
-["Torroella de Montgrí",42.042,3.127],
-["Palamós",41.847,3.128]
-];
+const $ = id => document.getElementById(id);
 
-const $=id=>document.getElementById(id);
-const select=$("location");
-places.forEach((p,i)=>{
-const o=document.createElement("option");
-o.value=i;o.textContent=p[0];select.appendChild(o);
-});
+let event = 'sunrise';
+let selected = {
+  lat: 42.263,
+  lon: 3.176,
+  name: 'Roses, Girona'
+};
+let layers = [];
+let scores = [];
+let map;
 
-function clamp(n){return Math.max(0,Math.min(1,n))}
-function scoreWeather(w){
-const high=w.cloud_cover_high??0;
-const mid=w.cloud_cover_mid??0;
-const low=w.cloud_cover_low??0;
-const visibility=w.visibility??10000;
-const humidity=w.relative_humidity_2m??70;
-const precipitation=w.precipitation_probability??0;
-const clouds=clamp(1-Math.abs((high*.55+mid*.45)-55)/65);
-const clear=clamp(1-low/100);
-const vis=clamp(visibility/15000);
-const dry=clamp(1-precipitation/100);
-const humidityFactor=clamp(1-Math.max(0,humidity-85)/30);
-return Math.round(100*(
-.30*clouds+
-.30*clear+
-.15*vis+
-.15*dry+
-.10*humidityFactor
-));
+function today(){
+  const parts = new Intl.DateTimeFormat('en-GB',{
+    timeZone:'Europe/Madrid',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit'
+  }).formatToParts(new Date());
+  const get = type => parts.find(p=>p.type===type).value;
+  return get('year')+'-'+get('month')+'-'+get('day');
 }
 
-function tomorrow(){
-const parts=new Intl.DateTimeFormat("en-CA",{
-timeZone:"Europe/Madrid",
-year:"numeric",month:"2-digit",day:"2-digit"
-}).format(new Date());
-const d=new Date(parts+"T12:00:00Z");
-d.setUTCDate(d.getUTCDate()+1);
-return d.toISOString().slice(0,10);
+function plusDays(s,n){
+  let d = new Date(s+'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate()+n);
+  return d.toISOString().slice(0,10);
 }
 
-async function getForecast(p){
-const url=new URL("https://api.open-meteo.com/v1/forecast");
-url.searchParams.set("latitude",p[1]);
-url.searchParams.set("longitude",p[2]);
-url.searchParams.set("hourly",[
-"cloud_cover_low","cloud_cover_mid",
-"cloud_cover_high","visibility",
-"relative_humidity_2m",
-"precipitation_probability"
-].join(","));
-url.searchParams.set("daily","sunrise");
-url.searchParams.set("timezone","Europe/Madrid");
-url.searchParams.set("forecast_days","3");
+$('date').min = today();
+$('date').max = plusDays(today(),6);
+$('date').value = plusDays(today(),1);
 
-const controller=new AbortController();
-const timeout=setTimeout(()=>controller.abort(),12000);
-let response;
-try{
-response=await fetch(url,{signal:controller.signal});
-}finally{clearTimeout(timeout)}
-if(!response.ok)throw Error("HTTP "+response.status);
-const data=await response.json();
-if(data.error)throw Error(data.reason||"Error API");
-
-const date=tomorrow();
-const dayIndex=data.daily.time.indexOf(date);
-if(dayIndex<0)throw Error("Fecha no disponible");
-const sunrise=data.daily.sunrise[dayIndex];
-const sunriseTime=new Date(sunrise).getTime();
-let best=null;
-
-for(let i=0;i<data.hourly.time.length;i++){
-const t=new Date(data.hourly.time[i]).getTime();
-if(Math.abs(t-sunriseTime)>60*60*1000)continue;
-const w={};
-for(const key of [
-"cloud_cover_low","cloud_cover_mid",
-"cloud_cover_high","visibility",
-"relative_humidity_2m",
-"precipitation_probability"
-])w[key]=data.hourly[key][i];
-const score=scoreWeather(w);
-if(!best||score>best.score)best={score,w};
-}
-if(!best)throw Error("Sin datos horarios");
-return {name:p[0],sunrise,score:best.score,w:best.w};
+function title(){
+  let date = new Date($('date').value+'T12:00:00Z');
+  $('eventTitle').textContent =
+    (event==='sunrise'?'Amanecer':'Atardecer')+' · '+
+    new Intl.DateTimeFormat('es-ES',{
+      weekday:'long',
+      day:'numeric',
+      month:'long',
+      year:'numeric',
+      timeZone:'UTC'
+    }).format(date);
 }
 
-let results=[];
-function render(){
-const selected=places[Number(select.value)][0];
-const item=results.find(x=>x.name===selected);
-if(!item)return;
-$("score").textContent=item.score;
-$("level").textContent=item.score>=75?"Potencial alto":item.score>=50?"Potencial moderado":"Potencial bajo";
-$("sunrise").textContent=item.sunrise.slice(11,16);
-const w=item.w;
-$("conditions").innerHTML=`
-<p>Nubes altas: ${w.cloud_cover_high??"--"}%</p>
-<p>Nubes medias: ${w.cloud_cover_mid??"--"}%</p>
-<p>Nubes bajas: ${w.cloud_cover_low??"--"}%</p>
-<p>Visibilidad: ${w.visibility==null?"--":(w.visibility/1000).toFixed(1)+" km"}</p>
-<p>Humedad: ${w.relative_humidity_2m??"--"}%</p>`;
+function status(s,error=false){
+  $('status').textContent=s;
+  $('status').className='status '+(error?'err':'muted');
 }
 
-async function load(){
-$("refresh").disabled=true;
-$("status").textContent="Consultando Open-Meteo...";
-$("ranking").textContent="Calculando...";
-try{
-const settled=await Promise.allSettled(
-places.map(p=>getForecast(p))
-);
-results=settled.filter(x=>x.status==="fulfilled")
-.map(x=>x.value).sort((a,b)=>b.score-a.score);
-if(!results.length){
-const error=settled.find(x=>x.status==="rejected");
-throw error?.reason||Error("Sin resultados");
+function clamp(v){
+  return Math.max(0,Math.min(1,v));
 }
-$("ranking").replaceChildren();
-results.forEach((p,i)=>{
-const row=document.createElement("div");
-row.className="place";
-const name=document.createElement("span");
-name.textContent=(i+1)+". "+p.name;
-const value=document.createElement("strong");
-value.textContent=p.score+"/100";
-row.append(name,value);
-$("ranking").appendChild(row);
-});
-$("status").textContent=
-"Predicción actualizada · "+results.length+" localidades";
-render();
-}catch(e){
-$("status").textContent="Error: "+e.message;
-$("status").className="error";
-$("ranking").textContent="No se pudo cargar.";
-}finally{$("refresh").disabled=false}
+
+function score(w){
+  let clouds=clamp(
+    1-Math.abs(
+      ((w.cloud_cover_high??0)*.55+
+       (w.cloud_cover_mid??0)*.45)-55
+    )/65
+  );
+  let clear=clamp(1-(w.cloud_cover_low??0)/100);
+  let vis=clamp((w.visibility??10000)/15000);
+  let rain=clamp(1-(w.precipitation_probability??0)/100);
+  let humidity=clamp(
+    1-Math.max(0,(w.relative_humidity_2m??70)-85)/30
+  );
+
+  return Math.round(100*(
+    .30*clouds+
+    .30*clear+
+    .15*vis+
+    .15*rain+
+    .10*humidity
+  ));
 }
-select.addEventListener("change",render);
-$("refresh").addEventListener("click",load);
-load();
+
+function color(v){
+  return v>=75?'#ce5d76':
+         v>=50?'#ef9c67':
+         v>=25?'#d3bd79':'#7996b7';
+}
+
+async function fetchJson(url){
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),15000);
+  try{
+    let r=await fetch(url,{signal:ctrl.signal});
+    if(!r.ok)throw Error('HTTP '+r.status);
+    let j=await r.json();
+    if(j.error)throw Error(j.reason||'Error de API');
+    return j;
+  }finally{
+    clearTimeout(t);
+  }
+}
+
+async function forecast(lat,lon,name){
+  let u=new URL('https://api.open-meteo.com/v1/forecast');
+
+  u.searchParams.set('latitude',lat.toFixed(4));
+  u.searchParams.set('longitude',lon.toFixed(4));
+  u.searchParams.set('hourly',
+    'cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility,relative_humidity_2m,precipitation_probability'
+  );
+  u.searchParams.set('daily',event);
+  u.searchParams.set('timezone','Europe/Madrid');
+  u.searchParams.set('start_date',$('date').value);
+  u.searchParams.set('end_date',$('date').value);
+
+  let j=await fetchJson(u);
+  let time=j.daily?.[event]?.[0];
+
+  if(!time)throw Error('No hay hora solar disponible');
+
+  let target=Date.parse(time);
+  let best=null;
+
+  for(let i=0;i<j.hourly.time.length;i++){
+    let t=Date.parse(j.hourly.time[i]);
+    if(Math.abs(t-target)>60*60*1000)continue;
+
+    let w={};
+    for(let k of [
+      'cloud_cover_low',
+      'cloud_cover_mid',
+      'cloud_cover_high',
+      'visibility',
+      'relative_humidity_2m',
+      'precipitation_probability'
+    ]){
+      w[k]=j.hourly[k]?.[i];
+    }
+
+    let s=score(w);
+    if(!best||s>best.value){
+      best={value:s,w};
+    }
+  }
+
+  if(!best)throw Error('Sin datos horarios cercanos');
+
+  return {
+    lat,lon,name,time,
+    value:best.value,
+    w:best.w
+  };
+}
+
+function show(p){
+  selected={lat:p.lat,lon:p.lon,name:p.name};
+
+  $('place').textContent=p.name;
+  $('score').textContent=p.value;
+  $('level').textContent=
+    p.value>=75?'Potencial muy alto':
+    p.value>=50?'Potencial alto':
+    p.value>=25?'Potencial moderado':
+    'Potencial bajo';
+
+  $('eventTime').textContent=p.time.slice(11,16);
+
+  let w=p.w;
+  $('details').textContent=
+    `Nubes altas ${w.cloud_cover_high??'—'}% · `+
+    `medias ${w.cloud_cover_mid??'—'}% · `+
+    `bajas ${w.cloud_cover_low??'—'}% · `+
+    `visibilidad ${w.visibility==null?'—':(w.visibility/1000).toFixed(1)+' km'} · `+
+    `humedad ${w.relative_humidity_2m??'—'}%`;
+}
+
+function samplePoints(){
+  let b=map.getBounds();
+  let center=map.getCenter();
+  let latSpan=Math.min(1.0,b.getNorth()-b.getSouth());
+  let lonSpan=Math.min(1.3,b.getEast()-b.getWest());
+  let pts=[];
+
+  for(let i=-2;i<=2;i++){
+    for(let k=-2;k<=2;k++){
+      pts.push({
+        lat:center.lat+i*latSpan/5,
+        lon:center.lng+k*lonSpan/5,
+        name:
+          `${(center.lat+i*latSpan/5).toFixed(3)}, `+
+          `${(center.lng+k*lonSpan/5).toFixed(3)}`
+      });
+    }
+  }
+  return pts;
+}
+
+async function update(){
+  if(!$('date').value)return;
+
+  title();
+  $('update').disabled=true;
+  status('Consultando 25 puntos del mapa…');
+
+  layers.forEach(l=>map.removeLayer(l));
+  layers=[];
+  scores=[];
+
+  let pts=samplePoints();
+  let settled=await Promise.allSettled(
+    pts.map(p=>forecast(p.lat,p.lon,p.name))
+  );
+
+  scores=settled
+    .filter(x=>x.status==='fulfilled')
+    .map(x=>x.value);
+
+  for(let p of scores){
+    let c=L.circleMarker([p.lat,p.lon],{
+      radius:17,
+      color:'#fff',
+      weight:1,
+      fillColor:color(p.value),
+      fillOpacity:.70
+    }).addTo(map);
+
+    c.bindTooltip(p.value+'/100');
+    c.on('click',()=>show(p));
+    layers.push(c);
+  }
+
+  scores.sort((a,b)=>b.value-a.value);
+  $('results').replaceChildren();
+
+  scores.slice(0,7).forEach((p,i)=>{
+    let row=document.createElement('div');
+    let name=document.createElement('span');
+    let value=document.createElement('strong');
+
+    name.textContent=(i+1)+'. '+p.name;
+    value.textContent=p.value+'/100';
+
+    row.append(name,value);
+    row.addEventListener('click',()=>{
+      map.panTo([p.lat,p.lon]);
+      show(p);
+    });
+    $('results').appendChild(row);
+  });
+
+  let near=scores.reduce((a,b)=>
+    !a||
+    Math.hypot(b.lat-selected.lat,b.lon-selected.lon)<
+    Math.hypot(a.lat-selected.lat,a.lon-selected.lon)
+    ?b:a,null
+  );
+
+  if(near)show(near);
+
+  let failed=settled.length-scores.length;
+
+  status(
+    scores.length
+      ?`${scores.length} puntos calculados${failed?' · '+failed+' fallaron':''}`
+      :'No se han podido obtener datos. Reintenta más tarde.',
+    !scores.length
+  );
+
+  $('update').disabled=false;
+}
+
+async function find(){
+  let q=$('search').value.trim();
+  if(!q)return;
+
+  status('Buscando '+q+'…');
+
+  try{
+    let u='https://geocoding-api.open-meteo.com/v1/search?name='+
+      encodeURIComponent(q)+
+      '&count=10&language=es&format=json';
+
+    let j=await fetchJson(u);
+    let items=j.results||[];
+
+    let p=
+      items.find(x=>x.country_code==='ES'&&
+        ['Cataluña','Catalunya','Catalonia'].includes(x.admin1))||
+      items.find(x=>x.country_code==='ES')||
+      items[0];
+
+    if(!p)throw Error('Localidad no encontrada');
+
+    selected={
+      lat:p.latitude,
+      lon:p.longitude,
+      name:[p.name,p.admin2||p.admin1]
+        .filter(Boolean).join(', ')
+    };
+
+    $('place').textContent=selected.name;
+    map.setView([selected.lat,selected.lon],10);
+    await update();
+
+  }catch(e){
+    status('Error buscando localidad: '+e.message,true);
+  }
+}
+
+function init(){
+  if(!window.L){
+    status('No se pudo cargar Leaflet. Comprueba la conexión.',true);
+    return;
+  }
+
+  map=L.map('map').setView([selected.lat,selected.lon],9);
+
+  L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+      maxZoom:18,
+      attribution:'© OpenStreetMap contributors'
+    }
+  ).addTo(map);
+
+  $('find').onclick=find;
+
+  $('search').addEventListener('keydown',e=>{
+    if(e.key==='Enter')find();
+  });
+
+  $('gps').onclick=()=>{
+    if(!navigator.geolocation){
+      status('GPS no disponible',true);
+      return;
+    }
+
+    status('Solicitando permiso de ubicación…');
+
+    navigator.geolocation.getCurrentPosition(
+      async p=>{
+        selected={
+          lat:p.coords.latitude,
+          lon:p.coords.longitude,
+          name:'Mi ubicación'
+        };
+        map.setView([selected.lat,selected.lon],10);
+        await update();
+      },
+      e=>status(
+        'No se pudo acceder al GPS: '+e.message,true
+      ),
+      {
+        timeout:12000,
+        enableHighAccuracy:false
+      }
+    );
+  };
+
+  for(let v of ['sunrise','sunset']){
+    $(v).onclick=()=>{
+      event=v;
+      $('sunrise').classList.toggle('active',v==='sunrise');
+      $('sunset').classList.toggle('active',v==='sunset');
+      update();
+    };
+  }
+
+  $('date').onchange=update;
+  $('update').onclick=update;
+
+  title();
+  update();
+}
+
+init();
 </script>
 </body>
 </html>
